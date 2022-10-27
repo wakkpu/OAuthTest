@@ -1,6 +1,12 @@
 package com.example.googleoauth.config;
 
 import com.example.googleoauth.auth.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.example.googleoauth.security.oauth2.RestAuthenticationEntryPoint;
+import com.example.googleoauth.security.oauth2.TokenAuthenticationFilter;
+import com.example.googleoauth.security.oauth2.handler.OAuth2AuthenticationFailureHandler;
+import com.example.googleoauth.security.oauth2.handler.OAuth2AuthenticationSuccessHandler;
+import com.example.googleoauth.security.oauth2.service.CustomUserDetailsService;
+import com.example.googleoauth.security.oauth2.service.CustomOAuth2UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,10 +36,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     private CustomUserDetailsService customUserDetailsService;
 
     @Autowired
-    private CustomOAuth2UsersService customOAuth2UsersService;
+    private CustomOAuth2UserService customOAuth2UsersService;
 
     @Autowired
-    private OAuth2AuthenciationSuccessHandler oAuth2AuthenciationSuccessHandler;
+    private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     @Autowired
     private OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
@@ -73,7 +79,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     // Authorization에서 사용할 userDetailService와 password encoder를 정의한다
     @Override
     public void configure(AuthenticationManagerBuilder authenticationManagerBuilder) throws Exception {
-        authenticationManagerBuilder.userDetailsService(customUserDetailsService)
+        authenticationManagerBuilder
+                .userDetailsService(customUserDetailsService)
                 .passwordEncoder(passwordEncoder());
     }
 
@@ -81,58 +88,63 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         http.cors() // cors를 허용한다
                 .and()
-                .sessionManagement() // session 사용 X
-               .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                    .sessionManagement() // session 사용 X
+                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
 
                 .and()
-                .csrf().disable() // csrf 사용 X
-                .formLogin().disable()
-                .httpBasic().disable()
-                // 사용자가 authenticated되지 않고 protected resource에 접근하는 경우에 invoke되는 entry point를 정의
-                .exceptionHandling().authenticationEntryPoint(new RestAuthenticationEntryPoint())
+                    .csrf().disable() // csrf 사용 X
+                    .formLogin().disable()
+                    .httpBasic().disable()
+                    // 사용자가 authenticated되지 않고 protected resource에 접근하는 경우에 invoke되는 entry point를 정의
+                    .exceptionHandling().authenticationEntryPoint(new RestAuthenticationEntryPoint())
 
                 .and()
-                .authorizeRequests()
-                .antMatchers(
-                        "/",
-                        "/error",
-                        "/favicon.ico",
-                        "/**/*.png",
-                        "/**/*.gif",
-                        "/**/*.svg",
-                        "/**/*.jpg",
-                        "/**/*.html",
-                        "/**/*.css",
-                        "/**/*.js"
-                ).permitAll() // 위의 resource는 모든 사용자에게 접근을 허용한다
-                .antMatchers(
+                    .authorizeRequests()
+                    .antMatchers(
+                            "/",
+                            "/error",
+                            "/favicon.ico",
+                            "/**/*.png",
+                            "/**/*.gif",
+                            "/**/*.svg",
+                            "/**/*.jpg",
+                            "/**/*.html",
+                            "/**/*.css",
+                            "/**/*.js",
+                            // for swagger
+                            "/v2/api-docs",
+                            "/swagger-resources/**",
+                            "/swagger-ui.html",
+                            "/swagger-ui/**"
+                    ).permitAll() // 위의 resource는 모든 사용자에게 접근을 허용한다
+                    .antMatchers(
                         "/auth/**",
                         "/oauth2/**"
-                ).permitAll().anyRequest().authenticated() // 인증된 사용자에게만 접근을 허용한다
+                    ).permitAll().anyRequest().authenticated() // 인증된 사용자에게만 접근을 허용한다
 
                 .and()
-                .oauth2Login()
-                .authorizationEndpoint() // oauth 로그인 시 접근할 end point를 정의한다
-                /* react client 에서는 이렇게 접근하면 된다
-                 # server base uri
-                 API_BASE_URL = 'http://localhost:8080';
+                    .oauth2Login()
+                    .authorizationEndpoint() // oauth 로그인 시 접근할 end point를 정의한다
+                    /* react client 에서는 이렇게 접근하면 된다
+                     # server base uri
+                     API_BASE_URL = 'http://localhost:8080';
 
-                 # oauth2 redirect uri
-                 OAUTH2_REDIRECT_URI = 'http://localhost:3000/oauth2/redirect'
+                     # oauth2 redirect uri
+                     OAUTH2_REDIRECT_URI = 'http://localhost:3000/oauth2/redirect'
 
-                 # google login uri
-                 GOOGLE_AUTH_URL = API_BASE_URL + '/oauth2/authorize/google?redirect_uri=' + OAUTH2_REDIRECT_URI;
-                 */
-                .baseUri("/oauth2/authorize")
-                .authorizationRequestRepository(cookieAuthorizationRequestRepository())
-
-                .and()
-                .userInfoEndpoint() // 로그인 시 사용할 User Service 정의
-                .userService(customOAuth2UsersService)
+                     # google login uri
+                     GOOGLE_AUTH_URL = API_BASE_URL + '/oauth2/authorize/google?redirect_uri=' + OAUTH2_REDIRECT_URI;
+                     */
+                    .baseUri("/oauth2/authorize")
+                    .authorizationRequestRepository(cookieAuthorizationRequestRepository())
 
                 .and()
-                .successHandler(oAuth2AuthenciationSuccessHandler) // 로그인 성공 시 invoke할 Handler 정의
-                .failureHandler(oAuth2AuthenticationFailureHandler); // 로그인 실패 시 invoke할 Handler 정의
+                    .userInfoEndpoint() // 로그인 시 사용할 User Service 정의
+                    .userService(customOAuth2UsersService)
+
+                .and()
+                    .successHandler(oAuth2AuthenticationSuccessHandler) // 로그인 성공 시 invoke할 Handler 정의
+                    .failureHandler(oAuth2AuthenticationFailureHandler); // 로그인 실패 시 invoke할 Handler 정의
 
         // request 요청이 올 때마다 UsernamePasswordAuthenticationFilter 이전에 tokenAuthenticationFilter를 수행하도록 정의한다
         http.addFilterBefore(tokenAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

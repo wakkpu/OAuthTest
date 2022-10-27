@@ -2,6 +2,9 @@ package com.example.googleoauth.security.oauth2.handler;
 
 import com.example.googleoauth.config.AppProperties;
 import com.example.googleoauth.auth.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.example.googleoauth.exception.BadRequestException;
+import com.example.googleoauth.security.oauth2.TokenProvider;
+import com.example.googleoauth.util.CookieUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -18,12 +21,16 @@ import java.util.Optional;
 
 import static com.example.googleoauth.auth.HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME;
 
+/**
+ * 인증이 성공했을 때, Spring Security는 SecurityConfig에 설정된
+ * OAuth2AuthenticationSuccessHandler의 onAuthenticationSuccess 메서드를 호출한다.
+ */
 @Component
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private TokenProvider tokenProvider;
-    private AppProperties appProperties;
-    private HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
+    private final TokenProvider tokenProvider;
+    private final AppProperties appProperties;
+    private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
     @Autowired
     OAuth2AuthenticationSuccessHandler(
@@ -33,7 +40,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     ) {
         this.tokenProvider = tokenProvider;
         this.appProperties = appProperties;
-        this.httpCookieOAuth2AuthorizationRequestRepository = httpCookieOAuth2AuthorizationRequestRepository
+        this.httpCookieOAuth2AuthorizationRequestRepository = httpCookieOAuth2AuthorizationRequestRepository;
     }
 
     // redirection uri에 대한 validation을 수행한다
@@ -91,11 +98,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                     // Let the clients use different paths if they want to
                     URI authorizedURI = URI.create(authorizedRedirectUri);
 
-                    if(authorizedURI.getHost().equalsIgnoreCase(clientRedirectUri.getHost())
-                            && authorizedURI.getPort() == clientRedirectUri.getPort()) {
-                        return true;
-                    }
-                    return false;
+                    return authorizedURI.getHost().equalsIgnoreCase(clientRedirectUri.getHost())
+                            && authorizedURI.getPort() == clientRedirectUri.getPort();
                 });
     }
 }

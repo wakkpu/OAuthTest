@@ -1,5 +1,6 @@
 package com.example.googleoauth.security.oauth2.users;
 
+import com.example.googleoauth.exception.OAuth2AuthenticationProcessingException;
 import com.example.googleoauth.model.AuthProvider;
 
 import java.util.Map;
@@ -9,7 +10,7 @@ public class OAuth2UserInfoFactory {
         if(registrationId.equalsIgnoreCase(AuthProvider.google.toString())) {
             return new GoogleOAuth2UserInfo(attributes);
         } else {
-            throw new OAuth2AuthenProcessingException(
+            throw new OAuth2AuthenticationProcessingException(
                     "Sorry! Login with " + registrationId +" is not supported yet"
             );
         }
